@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chess Engine Lab</title>
+<style>
+:root{color-scheme:dark;--bg:#0a1020;--panel:#141d31;--line:#2b3954;--muted:#9eacc5;--gold:#e7bd58;--green:#51cf9a;--red:#f17b83}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#0a1020,#111b30);color:#edf3ff;font:15px system-ui,Segoe UI,sans-serif}
+main{max-width:1180px;margin:auto;padding:20px}header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}h1{margin:0;font-size:27px}h2{font-size:17px;margin:0 0 12px}.muted,.note{color:var(--muted)}.note{font-size:12px;line-height:1.5}
+.tag,.pill{border:1px solid #485777;border-radius:99px;padding:5px 9px;font-size:12px;color:#cbd6eb}
+.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:15px}.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:16px;margin-bottom:15px}
+button{border:0;border-radius:9px;padding:10px 14px;background:var(--gold);color:#191919;font-weight:700;cursor:pointer}button.secondary{background:#273651;color:#edf3ff;border:1px solid #405273}button:disabled{opacity:.45;cursor:not-allowed}
+input,select,textarea{background:#0b1427;color:#edf3ff;border:1px solid #354562;border-radius:9px;padding:10px}input{min-width:0}textarea{width:100%;min-height:145px;font:13px ui-monospace,monospace;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row input{flex:1}
+.profile{display:flex;gap:14px;align-items:center}.avatar{width:66px;height:66px;border-radius:50%;object-fit:cover;background:#26334c}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.stat{background:#0c1528;border-radius:10px;padding:10px}.stat b{display:block;font-size:20px}.stat small{color:var(--muted)}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:8px}.scroll{max-height:330px;overflow:auto;border:1px solid #293852;border-radius:9px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;padding:9px 8px;border-bottom:1px solid #293852}th{position:sticky;top:0;background:#18233a;color:#b7c4dc}
+.game-row{cursor:pointer}.game-row:hover{background:#202e48}.selected{background:#263a59}
+#workers{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}.worker{padding:7px;background:#0c1528;border:1px solid #293852;border-radius:8px;font-size:11px;color:var(--muted)}.worker.on{border-color:#3c9875;color:#9ce6c4}
+.progress{height:8px;background:#0b1427;border-radius:20px;overflow:hidden;margin:10px 0}.bar{height:100%;width:0;background:linear-gradient(90deg,#4bc992,#e7bd58);transition:width .2s}
+.pill{border:0;border-radius:6px;background:#283650;font-weight:700}.Brilliant{color:#d7a7ff}.Great{color:#6ed5ff}.Best,.Excellent{color:#68dfa5}.Good{color:#bddb9d}.Inaccuracy{color:#f0d27d}.Mistake,.Blunder{color:#ff8990}
+.board{display:grid;grid-template-columns:repeat(8,1fr);max-width:350px;aspect-ratio:1;margin:auto;border:4px solid #2b3954;border-radius:6px;overflow:hidden}.sq{display:grid;place-items:center;font-size:clamp(20px,4.8vw,36px);aspect-ratio:1}.light{background:#e8d8b6;color:#202020}.dark{background:#78916e;color:#202020}
+.hidden{display:none!important}.section-label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9eacc5;margin-bottom:8px}
+@media(max-width:820px){main{padding:12px}.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}header{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body><main>
+<header><div><h1>♟ Chess Engine Lab</h1><div class="muted">10× Stockfish · PGN review · Chess.com public game explorer</div></div><span class="tag">INDEPENDENT PROJECT · NOT AFFILIATED WITH CHESS.COM</span></header>
+
+<div class="card">
+ <div class="section-label">Player explorer</div><h2>Find public Chess.com games</h2>
+ <div class="row"><input id="username" value="Hikaru" placeholder="Chess.com username"><button id="searchPlayer">Cari pemain</button></div>
+ <div id="playerStatus" class="note" style="margin-top:9px">Siap mencari profil dan arsip publik Hikaru.</div>
+ <div id="profile" class="hidden">
+  <div class="profile" style="margin-top:13px"><img id="avatar" class="avatar" alt="Avatar pemain"><div><b id="pname">—</b><div class="muted" id="pmeta"></div><a id="profileLink" target="_blank" rel="noopener" style="color:#e7bd58">Buka profil publik ↗</a></div></div>
+  <div class="stats" id="ratingStats"></div>
+ </div>
+</div>
+
+<div class="grid">
+<section>
+ <div class="card">
+  <div class="section-label">Game archives</div><h2>Riwayat pertandingan</h2>
+  <div class="row"><select id="month" style="flex:1" disabled><option value="">Cari pemain dahulu</option></select><button id="loadMonth" class="secondary" disabled>Muat pertandingan</button></div>
+  <div class="row" style="margin-top:9px"><input id="gameFilter" placeholder="Filter lawan / mode / opening…" disabled></div>
+  <div id="archiveStatus" class="note" style="margin:9px 0">Pilih bulan arsip untuk memuat daftar game.</div>
+  <div class="scroll"><table><thead><tr><th>Tanggal</th><th>Lawan</th><th>Mode</th><th>Hasil</th><th>PGN</th></tr></thead><tbody id="games"><tr><td colspan="5" class="note">Belum ada pertandingan dimuat.</td></tr></tbody></table></div>
+  <p class="note">Arsip All menampilkan semua bulan yang tersedia. Untuk menghindari permintaan berlebihan, game dimuat per bulan saat dipilih. API dapat membatasi permintaan paralel (429).</p>
+ </div>
+ <div class="card">
+  <div class="section-label">PGN review</div><h2>Analisis game terpilih atau tempel PGN</h2>
+  <textarea id="pgn" placeholder="Pilih pertandingan di daftar atau tempel PGN di sini…"></textarea>
+  <div class="row" style="margin-top:9px"><button id="analyze">Analisis dengan 10 Engine</button><button id="stop" class="secondary" disabled>Hentikan</button><button id="clear" class="secondary">Bersihkan</button></div>
+  <div class="note" style="margin-top:8px">Engine memakai worker Stockfish WASM dari CDN. Analisis 10 worker sekaligus cukup berat, khususnya pada ponsel.</div>
+ </div>
+ <div class="card"><h2>Penilaian setiap langkah</h2><div class="scroll"><table><thead><tr><th>#</th><th>Langkah</th><th>Label</th><th>Δ eval</th><th>Catatan</th></tr></thead><tbody id="moves"><tr><td colspan="5" class="note">Belum ada hasil analisis.</td></tr></tbody></table></div></div>
+</section>
+<aside>
+ <div class="card"><h2>Statistik pemain</h2><div class="stats"><div class="stat"><b id="totalGames">—</b><small>Bulan arsip</small></div><div class="stat"><b id="online">—</b><small>Status online</small></div><div class="stat"><b id="accuracy">—</b><small>Accuracy*</small></div><div class="stat"><b id="blunders">0</b><small>Blunder game</small></div></div><p class="note">*Accuracy adalah estimasi internal prototipe, bukan angka resmi Chess.com.</p></div>
+ <div class="card"><h2>Engine workers</h2><div id="workers"></div><div class="progress"><div class="bar" id="bar"></div></div><div id="engineStatus" class="note">Belum berjalan.</div><label class="note">Depth <select id="depth"><option>8</option><option>10</option><option selected>12</option><option>14</option><option>16</option></select></label></div>
+ <div class="card"><h2>Papan posisi</h2><div class="board" id="board"></div><p class="note" id="fen">Posisi awal</p></div>
+ <div class="card"><h2>Metode dan batasan</h2><p class="note">Sepuluh worker identik menganalisis posisi yang sama. Label langkah adalah estimasi berbasis perubahan evaluasi; sistem ini bukan salinan algoritma internal Chess.com. Brilliant hanya dapat ditandai sebagai kandidat heuristik dan perlu ditinjau.</p><p class="note">PubAPI hanya menyediakan data publik dan bersifat read-only. Chat game, conditional moves, serta data privat tidak tersedia. Arsip bisa berubah dan cache Chess.com dapat tertunda.</p></div>
+</aside>
+</div>
+<footer class="note">Data game publik diambil dari Chess.com PubAPI. Chess Engine Lab adalah proyek independen dan tidak berafiliasi, disponsori, atau didukung oleh Chess.com.</footer>
+</main>
+
+<script type="module">
+import { Chess } from 'https://cdn.jsdelivr.net/npm/chess.js@1.4.0/+esm';
+const $=id=>document.getElementById(id), N=10;
+let archiveUrls=[], loadedGames=[], selectedGame=null, workers=[], active=false, stopped=false;
+for(let i=0;i<N;i++){let d=document.createElement('div');d.className='worker';d.textContent=`Engine ${i+1}: standby`;$('workers').append(d)}
+const workerEls=[...$('workers').children];
+function status(s){$('playerStatus').textContent=s}
+function validUser(u){return /^[a-zA-Z0-9_-]{3,25}$/.test(u)}
+async function api(url){
+ const r=await fetch(url,{headers:{'Accept':'application/json'}});
+ if(!r.ok)throw new Error(`Chess.com API: HTTP ${r.status}`);
+ return await r.json();
+}
+function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function dateFmt(ts){if(!ts)return '—';return new Date(ts*1000).toLocaleDateString('id-ID')}
+function ratingCard(label,obj){
+ const rating=obj?.last?.rating??'—',best=obj?.best?.rating??'—',rec=obj?.record;
+ const record=rec?`${rec.win||0}W / ${rec.draw||0}D / ${rec.loss||0}L`:'';
+ return `<div class="stat"><b>${rating}</b><small>${esc(label)} · best ${best}<br>${record}</small></div>`;
+}
+async function searchPlayer(){
+ const u=$('username').value.trim().toLowerCase();
+ if(!validUser(u)){status('Username harus 3–25 karakter: huruf, angka, _ atau -.');return}
+ $('searchPlayer').disabled=true;$('profile').classList.add('hidden');$('month').disabled=true;$('loadMonth').disabled=true;$('gameFilter').disabled=true;
+ $('games').innerHTML='<tr><td colspan="5">Mengambil arsip…</td></tr>';archiveUrls=[];loadedGames=[];selectedGame=null;
+ try{
+  status(`Mengambil profil ${u}…`);
+  const profile=await api(`https://api.chess.com/pub/player/${encodeURIComponent(u)}`);
+  status('Mengambil statistik dan daftar arsip…');
+  const stats=await api(`https://api.chess.com/pub/player/${encodeURIComponent(u)}/stats`);
+  const archives=await api(`https://api.chess.com/pub/player/${encodeURIComponent(u)}/games/archives`);
+  archiveUrls=archives.archives||[];
+  $('avatar').src=profile.avatar||'';$('pname').textContent=(profile.title?profile.title+' ':'')+(profile.name||profile.username||u);
+  $('pmeta').textContent=[profile.location,profile.country?.split('/').pop(),`Bergabung ${dateFmt(profile.joined)}`,`${Number(profile.followers||0).toLocaleString('en-US')} followers`].filter(Boolean).join(' · ');
+  $('profileLink').href=profile.url||`https://www.chess.com/member/${encodeURIComponent(u)}`;
+  const keys=[['Rapid',stats.chess_rapid],['Blitz',stats.chess_blitz],['Bullet',stats.chess_bullet],['Daily',stats.chess_daily]];
+  $('ratingStats').innerHTML=keys.map(([n,o])=>ratingCard(n,o)).join('');
+  $('totalGames').textContent=archiveUrls.length;
+  $('profile').classList.remove('hidden');
+  const months=archiveUrls.slice().reverse();
+  $('month').innerHTML=months.map(url=>{const m=url.match(/\/(\d{4})\/(\d{2})$/);return `<option value="${esc(url)}">${m?m[1]+'-'+m[2]:esc(url)}</option>`}).join('')||'<option value="">Tidak ada arsip</option>';
+  $('month').disabled=!months.length;$('loadMonth').disabled=!months.length;$('gameFilter').disabled=!months.length;
+  $('archiveStatus').textContent=`${archiveUrls.length} bulan arsip ditemukan. Pilih bulan untuk menampilkan game.`;
+  try{const on=await api(`https://api.chess.com/pub/player/${encodeURIComponent(u)}/is-online`);$('online').textContent=on.online?'Online':'Offline'}catch{$('online').textContent='—'}
+  status(`Profil ${u} berhasil dimuat.`);
+  if(months.length)await loadMonth();
+ }catch(e){status('Gagal mengambil data: '+e.message+'. Coba lagi nanti; API publik dapat membatasi permintaan atau koneksi browser.');$('games').innerHTML='<tr><td colspan="5">Tidak dapat memuat arsip.</td></tr>'}
+ finally{$('searchPlayer').disabled=false}
+}
+function gameResult(g,u){
+ const white=(g.white?.username||'').toLowerCase(), me=u.toLowerCase(), side=white===me?'white':'black';
+ const mine=g[side], opponent=g[side==='white'?'black':'white'];
+ let result=mine?.result||'unknown';
+ if(result==='win')result='Menang';else if(result==='checkmated'||result==='resigned'||result==='timeout')result='Kalah';else if(['agreed','repetition','stalemate','insufficient','50move','threecheck','timevsinsufficient'].includes(result))result='Seri';
+ return {opponent:opponent?.username||'—',result,side,mode:g.time_class||'—'};
+}
+function drawGames(){
+ const q=$('gameFilter').value.trim().toLowerCase(),u=$('username').value.trim().toLowerCase();
+ const list=loadedGames.filter(g=>{const r=gameResult(g,u);return !q||[r.opponent,r.mode,g.eco,g.pgn].join(' ').toLowerCase().includes(q)});
+ $('games').innerHTML=list.map((g)=>{const ix=loadedGames.indexOf(g),r=gameResult(g,u);return `<tr class="game-row ${selectedGame===g?'selected':''}" data-i="${ix}"><td>${dateFmt(g.end_time)}</td><td>${esc(r.opponent)}<br><span class="note">${r.side==='white'?'Putih':'Hitam'} · ${g[r.side]?.rating||'?'}</span></td><td>${esc(r.mode)}</td><td>${esc(r.result)}</td><td>${g.pgn?'Tersedia':'—'}</td></tr>`}).join('')||'<tr><td colspan="5">Tidak ada game yang cocok.</td></tr>';
+ [...$('games').querySelectorAll('[data-i]')].forEach(tr=>tr.onclick=()=>selectGame(Number(tr.dataset.i)));
+}
+function selectGame(i){
+ selectedGame=loadedGames[i];$('pgn').value=selectedGame?.pgn||'';
+ drawGames();$('engineStatus').textContent=selectedGame?'Game dipilih. Tekan Analisis dengan 10 Engine.':'';
+}
+async function loadMonth(){
+ const url=$('month').value;if(!url)return;
+ $('loadMonth').disabled=true;$('archiveStatus').textContent='Mengambil daftar pertandingan…';
+ try{
+  const data=await api(url);loadedGames=data.games||[];selectedGame=null;
+  $('pgn').value='';drawGames();
+  $('archiveStatus').textContent=`${loadedGames.length} pertandingan dimuat dari ${url.split('/').slice(-2).join('-')}. Klik satu game untuk memilih PGN.`;
+ }catch(e){$('archiveStatus').textContent='Gagal memuat bulan ini: '+e.message}
+ finally{$('loadMonth').disabled=false}
+}
+$('searchPlayer').onclick=searchPlayer;$('loadMonth').onclick=loadMonth;$('gameFilter').oninput=drawGames;
+const STOCKFISH_URL='https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish-16.0.0-lite-single-03e3232.js';
+function setW(i,s,on=false){workerEls[i].textContent=`Engine ${i+1}: ${s}`;workerEls[i].classList.toggle('on',on)}
+function makeWorker(i){return new Promise((resolve,reject)=>{
+ try{const w=new Worker(STOCKFISH_URL);workers[i]=w;let ready=false;
+ w.onmessage=e=>{if(String(e.data)==='uciok'&&!ready){ready=true;setW(i,'ready',true);resolve(w)}};
+ w.onerror=reject;setW(i,'starting');w.postMessage('uci');setTimeout(()=>{if(!ready)reject(new Error('Engine timeout; CDN tidak merespons.'))},25000);
+ }catch(e){reject(e)}
+})}
+function ask(w,fen,depth){return new Promise(resolve=>{
+ let last='';const handler=e=>{const s=String(e.data);if(s.startsWith('info ')&&s.includes(' score '))last=s;if(s.startsWith('bestmove')){w.removeEventListener('message',handler);resolve({info:last,best:s.split(/\s+/)[1]})}};
+ w.addEventListener('message',handler);w.postMessage('ucinewgame');w.postMessage('position fen '+fen);w.postMessage('go depth '+depth);
+})}
+function score(info){if(!info)return 0;const m=info.match(/score (cp|mate) (-?\d+)/);if(!m)return 0;const n=Number(m[2]);return m[1]==='mate'?(n>0?1000+n:-1000+n):n/100}
+function median(a){a=a.slice().sort((x,y)=>x-y);return a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2}
+function classify(loss){
+ if(loss<0.03)return ['Best','Tidak kehilangan evaluasi'];
+ if(loss<0.10)return ['Excellent','Hampir setara dengan engine'];
+ if(loss<0.20)return ['Good','Masih mempertahankan posisi'];
+ if(loss<0.40)return ['Inaccuracy','Keunggulan sedikit berkurang'];
+ if(loss<0.80)return ['Mistake','Kesalahan cukup besar'];
+ return ['Blunder','Kehilangan evaluasi besar'];
+}
+function board(fen){
+ const b=new Chess(fen).board(),w={p:'♙',r:'♖',n:'♘',b:'♗',q:'♕',k:'♔'},bl={p:'♟',r:'♜',n:'♞',b:'♝',q:'♛',k:'♚'};
+ $('board').innerHTML='';b.forEach((row,r)=>row.forEach((p,c)=>{const d=document.createElement('div');d.className='sq '+((r+c)%2?'dark':'light');d.textContent=p?(p.color==='w'?w[p.type]:bl[p.type]):'';$('board').append(d)}));$('fen').textContent=fen;
+}
+function cleanRows(){ $('moves').innerHTML='<tr><td colspan="5" class="note">Belum ada hasil analisis.</td></tr>'}
+$('analyze').onclick=async()=>{
+ if(active)return;const game=new Chess();
+ try{game.loadPgn($('pgn').value,{strict:false})}catch(e){$('engineStatus').textContent='PGN tidak valid: '+e.message;return}
+ const history=game.history({verbose:true});if(!history.length){$('engineStatus').textContent='PGN kosong atau tidak memiliki langkah.';return}
+ const replay=new Chess(),fens=[replay.fen()];history.forEach(m=>{replay.move(m);fens.push(replay.fen())});
+ active=true;stopped=false;$('analyze').disabled=true;$('stop').disabled=false;$('moves').innerHTML='';$('bar').style.width='0%';$('engineStatus').textContent='Menyiapkan sepuluh worker…';
+ try{
+  await Promise.all(Array.from({length:N},(_,i)=>makeWorker(i)));
+  const depth=Number($('depth').value);let nBest=0,nBlunder=0,totalLoss=0;
+  for(let k=0;k<history.length;k++){
+   if(stopped)break;
+   $('engineStatus').textContent=`Menganalisis ply ${k+1}/${history.length} · 10 engine · depth ${depth}`;
+   const turn=history[k].color;
+   const before=await Promise.all(workers.map(w=>ask(w,fens[k],depth)));
+   if(stopped)break;
+   const after=await Promise.all(workers.map(w=>ask(w,fens[k+1],depth)));
+   if(stopped)break;
+   const a=median(before.map(x=>score(x.info)*(turn==='w'?1:-1)));
+   const b=median(after.map(x=>score(x.info)*(turn==='w'?-1:1)));
+   const loss=Math.max(0,a-b);let [label,reason]=classify(loss);
+   if(label==='Best')nBest++;if(label==='Blunder')nBlunder++;totalLoss+=Math.min(loss,2);
+   const m=history[k],tr=document.createElement('tr');
+   tr.innerHTML=`<td>${Math.floor(k/2)+1}${turn==='b'?'…':''}</td><td><b>${m.san}</b></td><td><span class="pill ${label}">${label}</span></td><td>${loss.toFixed(2)}</td><td>${reason}</td>`;
+   $('moves').append(tr);$('bar').style.width=((k+1)/history.length*100)+'%';board(fens[k+1]);
+  }
+  if(!stopped){$('accuracy').textContent=Math.max(0,100-totalLoss/history.length*25).toFixed(1)+'%';$('blunders').textContent=nBlunder;$('engineStatus').textContent=`Selesai: ${history.length} ply dianalisis. ${nBest} Best · ${nBlunder} Blunder.`}
+  else $('engineStatus').textContent='Analisis dihentikan.';
+ }catch(e){$('engineStatus').textContent='Gagal menjalankan engine: '+e.message+'. Periksa internet, CDN, dan izin Worker.'}
+ finally{active=false;$('analyze').disabled=false;$('stop').disabled=true}
+};
+$('stop').onclick=()=>{stopped=true;workers.forEach(w=>w?.postMessage('stop'));$('engineStatus').textContent='Menghentikan engine…'};
+$('clear').onclick=()=>{$('pgn').value='';cleanRows();$('accuracy').textContent='—';$('blunders').textContent='0';$('bar').style.width='0%';board(new Chess().fen())};
+board(new Chess().fen());
+// Preload the requested public player when the page opens.
+searchPlayer();
+</script>
+</body></html>
